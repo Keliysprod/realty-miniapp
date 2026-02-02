@@ -59,11 +59,11 @@
         <div id="app"></div>
     </div>
 
-    <script>
+<script>
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Расширить на весь экран
+        tg.expand();
 
-        // ВАЖНО: Замени эту ссылку на свою из ngrok!
+        // Твоя ссылка (проверь, что она актуальна в терминале!)
         const API_URL = 'https://abatable-misapprehendingly-nila.ngrok-free.dev/api/apartments';
 
         async function loadData() {
@@ -71,28 +71,31 @@
             const loading = document.getElementById('loading');
             
             try {
-                const response = await fetch(API_URL);
+                const response = await fetch(API_URL, {
+                    headers: {
+                        // ЭТОТ ЗАГОЛОВОК УБИРАЕТ ОШИБКУ "Unexpected token <"
+                        'ngrok-skip-browser-warning': 'true'
+                    }
+                });
                 
-                if (!response.ok) throw new Error('Ошибка сервера');
+                if (!response.ok) throw new Error('Ошибка сервера: ' + response.status);
                 
                 const data = await response.json();
                 loading.style.display = 'none';
                 
                 if (data.length === 0) {
-                    app.innerHTML = '<p style="text-align:center">Квартир пока нет. Добавьте их через /admin в боте.</p>';
+                    app.innerHTML = '<p style="text-align:center">Квартир пока нет.</p>';
                     return;
                 }
 
-                app.innerHTML = ''; // Очистить контейнер
+                app.innerHTML = ''; 
                 data.forEach(item => {
                     const card = document.createElement('div');
                     card.className = 'card';
                     card.innerHTML = `
                         <h3>${item.district}</h3>
-                        <div class="price">${item.price.toLocaleString()} сум/мес</div>
-                        <div class="details">
-                            🛏 Комнат: ${item.rooms} | 🏢 Этаж: ${item.floor}
-                        </div>
+                        <div class="price">${item.price.toLocaleString()} сум</div>
+                        <div class="details">🛏 Комнат: ${item.rooms} | 🏢 Этаж: ${item.floor}</div>
                     `;
                     app.appendChild(card);
                 });
@@ -100,16 +103,15 @@
                 loading.style.display = 'none';
                 app.innerHTML = `
                     <div class="error-msg">
-                        <p>Ошибка связи с сервером!</p>
+                        <p>Ошибка связи!</p>
                         <small>${error.message}</small>
-                        <p>Проверьте, запущен ли Python и ngrok.</p>
-                    </div>
-                `;
+                        <p>Нажми три точки -> Reload Page</p>
+                    </div>`;
             }
         }
 
-        // Запуск загрузки
         loadData();
     </script>
 </body>
 </html>
+
