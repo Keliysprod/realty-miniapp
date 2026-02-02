@@ -3,70 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Поиск квартир</title>
+    <title>RentMyRoom - Поиск жилья</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f4f4f4; padding: 15px; }
-        .filter-section { background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        input { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
-        .card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; position: relative; }
-        .status { position: absolute; top: 15px; right: 15px; font-size: 12px; font-weight: bold; }
-        .available { color: #2ecc71; }
-        .booked { color: #e74c3c; }
-        .price { color: #3498db; font-size: 18px; font-weight: bold; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            color: var(--tg-theme-text-color, #222);
+            margin: 0;
+            padding: 15px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h2 {
+            text-align: center;
+            color: var(--tg-theme-hint-color, #777);
+        }
+        .card {
+            background: var(--tg-theme-bg-color, #fff);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .card h3 {
+            margin-top: 0;
+            color: var(--tg-theme-link-color, #248bcf);
+        }
+        .price {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #31b545;
+        }
+        .details {
+            font-size: 0.9em;
+            margin: 10px 0;
+        }
+        .error-msg {
+            color: #e53935;
+            text-align: center;
+            padding: 20px;
+        }
+        #loading {
+            text-align: center;
+            padding: 20px;
+        }
     </style>
 </head>
 <body>
-    <div class="filter-section">
-        <input type="text" id="districtSearch" placeholder="Поиск по району..." oninput="filterData()">
-        <input type="number" id="roomSearch" placeholder="Количество комнат" oninput="filterData()">
+    <div class="container">
+        <h2>🏠 Доступные квартиры</h2>
+        <div id="loading">Загрузка данных...</div>
+        <div id="app"></div>
     </div>
 
-    <div id="catalog"></div>
-
     <script>
-        let allApartments = [];
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Расширить на весь экран
+
+        // ВАЖНО: Замени эту ссылку на свою из ngrok!
+        const API_URL = 'https://abatable-misapprehendingly-nila.ngrok-free.dev/api/apartments';
 
         async function loadData() {
-            try {
-        // Вставляем твою ссылку сюда (обязательно добавь /api/apartments в конце)
-                const response = await fetch('https://abatable-misapprehendingly-nila.ngrok-free.dev/api/apartments');
-                allApartments = await response.json();
-                renderCards(allApartments);
-            } catch (error) {
-                console.error("Ошибка:", error);
-                }
-            }
-
-        function renderCards(data) {
-            const catalog = document.getElementById('catalog');
-            catalog.innerHTML = data.map(apt => `
-                <div class="card">
-                    <div class="status ${apt.is_available ? 'available' : 'booked'}">
-                        ${apt.is_available ? '● Свободна' : '● Занята'}
-                    </div>
-                    <div style="font-weight:bold">${apt.district}</div>
-                    <div>${apt.rooms} комн., этаж ${apt.floor}</div>
-                    <div class="price">${apt.price.toLocaleString()} ₽</div>
-                </div>
-            `).join('');
-        }
-
-        function filterData() {
-            const dist = document.getElementById('districtSearch').value.toLowerCase();
-            const rooms = document.getElementById('roomSearch').value;
+            const app = document.getElementById('app');
+            const loading = document.getElementById('loading');
             
-            const filtered = allApartments.filter(apt => {
-                return apt.district.toLowerCase().includes(dist) && 
-                       (rooms === "" || apt.rooms == rooms);
-            });
-            renderCards(filtered);
+            try {
+                const response = await fetch(API_URL);
+                
+                if (!response.ok) throw new Error('Ошибка сервера');
+                
+                const data = await response.json();
+                loading.style.display = 'none';
+                
+                if (data.length === 0) {
+                    app.innerHTML = '<p style="text-align:center">Квартир пока нет. Добавьте их через /admin в боте.</p>';
+                    return;
+                }
+
+                app.innerHTML = ''; // Очистить контейнер
+                data.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <h3>${item.district}</h3>
+                        <div class="price">${item.price.toLocaleString()} сум/мес</div>
+                        <div class="details">
+                            🛏 Комнат: ${item.rooms} | 🏢 Этаж: ${item.floor}
+                        </div>
+                    `;
+                    app.appendChild(card);
+                });
+            } catch (error) {
+                loading.style.display = 'none';
+                app.innerHTML = `
+                    <div class="error-msg">
+                        <p>Ошибка связи с сервером!</p>
+                        <small>${error.message}</small>
+                        <p>Проверьте, запущен ли Python и ngrok.</p>
+                    </div>
+                `;
+            }
         }
 
-        window.onload = loadData;
-        Telegram.WebApp.ready();
+        // Запуск загрузки
+        loadData();
     </script>
 </body>
-
 </html>
-
